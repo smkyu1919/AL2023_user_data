@@ -1,6 +1,8 @@
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="BOUNDARY"
 
+# AL2023은 bootstrap.sh 지원방식이 아니기에 nodeadm 방식이라 EKS용 AL2023은 아래 선언을 무조건 해줘야함. (최소 필요조건)(시작)
+
 
 --BOUNDARY
 Content-Type: application/node.eks.aws
@@ -23,3 +25,4 @@ spec:
     - --node-labels=env=prod,role=worker
 
 --BOUNDARY--
+# AL2023은 bootstrap.sh 지원방식이 아니기에 nodeadm 방식이라 EKS용 AL2023은 아래 선언을 무조건 해줘야함. (최소 필요조건)(끝)
