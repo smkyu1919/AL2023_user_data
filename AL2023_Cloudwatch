@@ -1,0 +1,87 @@
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+# AL2023은 bootstrap.sh 지원방식이 아니기에 nodeadm 방식이라 EKS용 AL2023은 아래 선언을 무조건 해줘야함. (최소 필요조건)(시작)
+
+
+--BOUNDARY
+Content-Type: application/node.eks.aws
+
+---
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: {Cluster-name} # 클러스터명 입력
+    apiServerEndpoint: {Cluster-API server endpoint} # 클러스터 API endpoint 입력
+    certificateAuthority: {Cluster Certificate authority} # 클러스터 인증 권한정보 입력
+    cidr: 172.20.0.0/16 # 해당 대역은 클러스터 컨트롤 플레인용 사용하는 사설 IP이며, 노드 IP와 겹치면 안됌.
+  kubelet:
+    config:
+      clusterDNS:
+      - 172.20.0.10 # 클러스터 CIDR에서 +10 값
+    flags:
+    - --cluster-domain=cluster.local
+    - --node-labels=env=prod,role=worker
+
+--BOUNDARY
+# AL2023은 bootstrap.sh 지원방식이 아니기에 nodeadm 방식이라 EKS용 AL2023은 아래 선언을 무조건 해줘야함. (최소 필요조건)(끝)
+
+
+Content-Type: text/x-shellscript
+# 각 Boundary 영역 구분은 --BOUNDARY로 함. 
+# UserData 마무리는 --BOUNDARY--로 함.
+# BOUNDARY 앞뒤 특수문자 양식은 상단 boundary에 영향을 받는다.
+
+# 명령어 구간
+#!/bin/bash
+
+set -o xtrace
+
+ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime
+timedatectl set-ntp true # 서울 시간 ntp 고정
+
+# CloudWatch Agent 설치명령 (리소스 지정 및 임계치 포함)
+yum update -y
+yum install -y amazon-cloudwatch-agent
+cat <<EOF > /opt/aws/amazon-cloudwatch-agent/bin/config.json
+{
+  "agent": {
+    "metrics_collection_interval": 60,
+    "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log"
+  },
+  "metrics": {
+    "namespace": "CWAgent",
+    "metrics_collected": {
+      "mem": {
+        "measurement": [
+          "mem_used_percent"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "cpu": {
+        "measurement": [
+          "cpu_usage_idle",
+          "cpu_usage_user",
+          "cpu_usage_system"
+        ],
+        "metrics_collection_interval": 60,
+        "totalcpu": false
+      }
+    }
+  }
+}
+EOF
+cp /opt/aws/amazon-cloudwatch-agent/bin/config.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+chown root:root /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+chmod 644 /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+    -a fetch-config \
+    -m ec2 \
+    -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+    -s
+systemctl enable amazon-cloudwatch-agent
+systemctl restart amazon-cloudwatch-agent
+systemctl status amazon-cloudwatch-agent
+
+--BOUNDARY--
