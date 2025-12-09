@@ -1,0 +1,25 @@
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+
+--BOUNDARY
+Content-Type: application/node.eks.aws
+
+---
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: {Cluster-name} # 클러스터명 입력
+    apiServerEndpoint: {Cluster-API server endpoint} # 클러스터 API endpoint 입력
+    certificateAuthority: {Cluster Certificate authority} # 클러스터 인증 권한정보 입력
+    cidr: 172.20.0.0/16 # 해당 대역은 클러스터 컨트롤 플레인용 사용하는 사설 IP이며, 노드 IP와 겹치면 안됌.
+  kubelet:
+    config:
+      clusterDNS:
+      - 172.20.0.10 # 클러스터 CIDR에서 +10 값
+    flags:
+    - --cluster-domain=cluster.local
+    - --node-labels=env=prod,role=worker
+
+--BOUNDARY--
